@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 DC Motor Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 { margin-top: 20px; }
+
+    .card {
+      background: white;
+      padding: 25px;
+      margin: 20px auto;
+      max-width: 350px;
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    button {
+      width: 90%;
+      padding: 12px;
+      margin: 10px auto;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      cursor: pointer;
+    }
+
+    #forwardBtn { background: green; }
+    #reverseBtn { background: orange; }
+    #stopBtn { background: red; }
+
+    input[type="range"] { width: 90%; margin-top: 10px; }
+
+    #loginForm {
+      max-width: 400px;
+      margin: 80px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    #loginForm input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    #loginForm button {
+      background: #1e88e5;
+      color: white;
+    }
+
+    #dashboard { display: none; }
+  </style>
+</head>
+
+<body>
+
+<h1>ESP32 DC Motor Control</h1>
+
+<!-- LOGIN -->
+<div id="loginForm">
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="card">
+    <h2>Motor Control</h2>
+    <p>Status: <span id="motorStatus">STOP</span></p>
+
+    <!-- ✅ FIXED BUTTON TEXT -->
+    <button id="forwardBtn">FORWARD</button>
+    <button id="reverseBtn">REVERSE</button>
+    <button id="stopBtn">STOP</button>
+
+    <h3>Speed: <span id="speedValue">180</span></h3>
+    <input type="range" id="speedSlider" min="0" max="255" value="180">
+  </div>
+
+  <button id="logoutBtn" style="background:#555; color:white;">Logout</button>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDrANsWhPUYcRfwIDyHXRSjmTkMRx00RCc",
+    authDomain: "motorcontrolesp32.firebaseapp.com",
+    databaseURL: "https://motorcontrolesp32-default-rtdb.firebaseio.com/",
+    projectId: "motorcontrolesp32",
+    storageBucket: "motorcontrolesp32.firebasestorage.app",
+    messagingSenderId: "343135562390",
+    appId: "1:343135562390:web:302e2597264f5da51ab0b7"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+
+  const allowedEmail = "gayatri@aashman.in";
+  const allowedPassword = "AshmanTech@Gayatri_0903";
+
+  const loginBtn = document.getElementById("loginBtn");
+  const loginForm = document.getElementById("loginForm");
+  const dashboard = document.getElementById("dashboard");
+
+  loginBtn.onclick = () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    if (email === allowedEmail && password === allowedPassword) {
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(() => {
+          loginForm.style.display = "none";
+          dashboard.style.display = "block";
+          startMotorControl();
+        })
+        .catch(err => alert(err.message));
+    } else {
+      alert("Invalid credentials");
+    }
+  };
+
+  function startMotorControl() {
+    const db = firebase.database();
+    const motorRef = db.ref("/motor");
+    const speedRef = db.ref("/speed");
+
+    const statusText = document.getElementById("motorStatus");
+    const speedSlider = document.getElementById("speedSlider");
+    const speedValue = document.getElementById("speedValue");
+
+    motorRef.get().then(snapshot => {
+      if (!snapshot.exists()) motorRef.set("STOP");
+    });
+
+    motorRef.on("value", snap => {
+      statusText.innerText = snap.val();
+    });
+
+    speedRef.on("value", snap => {
+      const speed = snap.val();
+      speedSlider.value = speed;
+      speedValue.innerText = speed;
+    });
+
+    document.getElementById("forwardBtn").onclick = () => motorRef.set("FORWARD");
+    document.getElementById("reverseBtn").onclick = () => motorRef.set("REVERSE");
+    document.getElementById("stopBtn").onclick = () => motorRef.set("STOP");
+
+    speedSlider.oninput = () => {
+      speedValue.innerText = speedSlider.value;
+      speedRef.set(Number(speedSlider.value));
+    };
+  }
+
+  document.getElementById("logoutBtn").onclick = () => {
+    firebase.auth().signOut().then(() => {
+      dashboard.style.display = "none";
+      loginForm.style.display = "block";
+    });
+  };
+</script>
+
+</body>
+</html>
